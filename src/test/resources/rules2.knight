@@ -1,0 +1,284 @@
+# -----------------------------------------------------------------------------
+# Port definitions
+# -----------------------------------------------------------------------------
+interface lo     127.0.0.1/32
+interface enp2s0 192.168.66.2/24
+interface enp3s0 10.0.10.1/24
+interface enp4s0 10.0.20.1/24
+interface enp5s0 10.0.30.1/24
+
+# -----------------------------------------------------------------------------
+# Filters
+# -----------------------------------------------------------------------------
+
+service any {}
+
+service ntp {
+    proto: udp
+
+    server {
+        dport: 123
+        saddr: $intf_in_net
+    }
+
+    client {
+        dport: 123
+    }
+}
+
+service ping {
+    proto: icmp
+
+    server {
+        saddr: $intf_in_net
+    }
+
+    client {
+    }
+}
+
+service ssh {
+    proto: tcp
+    dport: 22
+
+    server {
+        saddr: $intf_in_net
+        daddr: $intf_in_addr
+    }
+
+    client {
+    }
+}
+
+service dns {
+    proto: udp,tcp 
+    dport: 53 
+
+    server {
+        saddr: $intf_in_net
+        daddr: $intf_in_addr
+    }
+
+    client {
+    }
+}
+
+service mDNS {
+    proto: udp
+    daddr: 224.0.0.251
+    dport: 5353
+
+    server {}
+    client {}
+}
+
+service dhcp {
+    proto: udp
+
+    server {
+        sport: 68
+        dport: 67
+    }
+
+    client {
+        sport: 67
+        dport: 68
+    }
+}
+
+service http {
+    proto: tcp
+    dport: 80,8080
+
+    server {
+        daddr: $intf_in_addr
+        saddr: $intf_in_net
+    }
+
+    client {
+    }
+}
+
+service https {
+    proto: tcp
+    dport: 443
+
+    server {
+        daddr: $intf_in_addr
+        saddr: $intf_in_net
+    }
+
+    client {
+    }
+}
+
+# homematic
+service homematic {
+    proto: tcp
+
+    server {
+        saddr: $intf_in_net
+        dport: 9125
+    }
+
+    client {
+        dport: 2000,2001,2010,8181,8701,9292
+        daddr: $intf_out_net
+    }
+}
+
+# NFS
+service nfs {
+    proto: udp,tcp
+    dport: 111,2049
+
+    server {
+        daddr: $intf_in_addr
+        saddr: $intf_in_net
+    }
+
+    client {
+        daddr: $intf_out_net
+    }
+}
+
+# NetBIOS
+service netbios {
+   proto: udp,tcp
+   dport: 137,138,139
+
+   server {
+      saddr: $intf_in_net
+      daddr: $intf_in_net
+   }
+
+   client {
+      saddr: $intf_out_net
+      daddr: $intf_out_addr
+   }
+}
+
+service ssdp {
+    proto: udp
+    dport: 1900
+    daddr: 239.255.255.250
+}
+
+service broadcast {
+    proto: igmp
+    daddr: 224.0.0.0/24
+    saddr: $intf_in_net
+}
+
+# forward check
+service unknown {
+    server {
+        daddr: !$intf_in_net
+        saddr: $intf_in_net
+    }
+}
+
+# -----------------------------------------------------------------------------
+# Modify Rules
+# -----------------------------------------------------------------------------
+modify snat {
+    saddr: $intf_out_addr
+}
+
+modify masq {
+    saddr: $masquerade
+}
+
+# -----------------------------------------------------------------------------
+# Rule assignements
+# -----------------------------------------------------------------------------
+
+# local traffic
+@lo {
+    consume any
+    provide any
+}
+
+# ssh
+@enp2s0 {
+    provide ping    
+    provide ssh
+    provide dns
+    provide mDNS
+    provide https
+    provide netbios
+    provide ssdp
+    provide broadcast
+    
+    consume ping
+    consume ssh
+    consume dns
+    consume mDNS
+    consume https,http
+    consume broadcast
+    consume netbios
+    consume ntp
+}
+
+@enp3s0 {
+    provide ping
+    provide dhcp
+    provide dns
+    provide mDNS
+    provide netbios
+    provide ssdp
+    provide homematic
+    provide broadcast
+    provide ntp
+
+    consume ping
+    consume ssh
+    consume mDNS
+    consume https,http
+    consume homematic
+    consume broadcast
+    consume netbios
+
+    forward unknown to @enp2s0 with snat
+}
+
+@enp4s0 {
+    provide ping
+    provide dhcp
+    provide dns
+    provide mDNS
+    provide netbios
+    provide ssdp
+    provide broadcast
+    provide ntp
+
+    consume ping
+    consume ssh
+    consume mDNS
+    consume https,http
+    consume nfs
+    consume broadcast
+    consume netbios
+
+    forward unknown to @enp2s0 with snat
+}
+
+@enp5s0 {
+    provide ping
+    provide dhcp
+    provide ssh
+    provide dns
+    provide mDNS
+    provide netbios
+    provide ssdp
+    provide broadcast
+    provide ntp
+
+    consume ssh
+    consume ping
+    consume mDNS
+    consume broadcast
+    consume netbios
+
+    forward unknown to @enp2s0 with masq
+}

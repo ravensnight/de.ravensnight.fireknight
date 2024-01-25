@@ -1,0 +1,270 @@
+options {  
+  LOOKAHEAD = 2;
+  STATIC = false;
+}
+
+PARSER_BEGIN(Knight)
+
+package de.ravensnight.fireknight.v2.parser;
+
+import de.ravensnight.fireknight.v2.model.ScriptBuilder;
+import de.ravensnight.fireknight.v2.model.InterfaceBuilder;
+import de.ravensnight.fireknight.v2.model.NetBuilder;
+import de.ravensnight.fireknight.v2.model.RuleBuilder;
+import de.ravensnight.fireknight.v2.model.FilterBuilder;
+import de.ravensnight.fireknight.v2.model.FilterHelper;
+import de.ravensnight.fireknight.v2.model.ServiceBuilder;
+import de.ravensnight.fireknight.v2.model.ModifierBuilder;
+
+/**
+ * Simple brace matcher.
+ */
+public class Knight {
+}
+
+PARSER_END(Knight)
+
+SKIP :
+{
+  " "
+| "\t"
+| "\n"
+| "\r"
+}
+
+SPECIAL_TOKEN : 
+{
+  < COMMENT: "#" (~["\n","\r"])* <EOL> > 
+}
+
+/** Keywords */
+TOKEN :
+{
+  < INTERFACE: "interface" >
+| < SERVICE: "service" >
+| < MODIFY: "modify" >
+| < SERVER: "server" >
+| < CLIENT: "client" >
+| < PROVIDE: "provide" >
+| < CONSUME: "consume" >
+| < FORWARD: "forward" >
+| < WITH: "with" >
+| < TO: "to" >
+| < P_DADDR: "daddr" >
+| < P_DPORT: "dport" >
+| < P_SADDR: "saddr" >
+| < P_SPORT: "sport" >
+| < P_PROTO: "proto" >
+| < R_INTF_IN_ADDR: "$intf_in_addr" >
+| < R_INTF_IN_NET: "$intf_in_net" >
+| < R_INTF_OUT_ADDR: "$intf_out_addr" >
+| < R_INTF_OUT_NET: "$intf_out_net" >
+| < R_MASQUERADE: "$masquerade" >
+| < OUT: ">>" >
+| < NOT: "!" >
+| < COLON: ":" >
+| < AT: "@" >
+| < COMMA: "," >
+| < SEMICOLON: ";" >
+| <OPEN: "{" >
+| <CLOSE: "}" >
+| <DOT: "." >
+| <SLASH: "/" >
+| <HASH: "#" >
+| <ARR_OPEN: "[" >
+| <ARR_CLOSE: "]" >
+| <FN_OPEN: "(" >
+| <FN_CLOSE: ")" >
+}
+
+/** Tokens */
+TOKEN :
+{
+  < ADDR :  <NUMBER> <DOT> <NUMBER> <DOT> <NUMBER> <DOT> <NUMBER> >
+| < REF: "$" <NAME> >
+| < NAME: <LETTER> ( <DIGIT> | <LETTER> )* >
+| < NUMBER : (<DIGIT>)+ >
+| < EOL: "\n" | "\r"  | "\r\n" >
+| < #DIGIT : [ "0"-"9" ] >
+| < #LETTER : [ "a"-"z", "A"-"Z" ] >
+}
+
+/** Root production. */
+void parse(ScriptBuilder builder) :
+{}
+{
+  (
+    intf(builder) 
+  | service(builder.service()) 
+  | modifier(builder.modifier()) 
+  | assign(builder)
+  )* <EOF> {
+    builder.build();
+  }
+}
+
+void intf(ScriptBuilder b) :
+{
+  Token t;
+  InterfaceBuilder ib;
+}
+{
+  <INTERFACE> { ib = b.intf(); } t = <NAME> { ib.name(t.image); } net(ib.net())
+  {
+    ib.build();
+  }
+}
+
+void addr(NetBuilder b) :
+{
+  Token t;
+}
+{
+  t = <ADDR> { b.addr(t.image).build(); }
+}
+
+void net(NetBuilder b) :
+{
+  Token a, m;
+}
+{
+  (a = <ADDR> <SLASH> m = <NUMBER>) {
+    b.addr(a.image).mask(m.image).build();
+  }
+}
+
+void netRef(NetBuilder n) :
+{}
+{
+  (    
+      <R_INTF_IN_NET> { n.intfInNet().build(); }
+    | <R_INTF_IN_ADDR> { n.intfInAddr().build(); }
+    | <R_INTF_OUT_NET> { n.intfOutNet().build(); }
+    | <R_INTF_OUT_ADDR> { n.intfOutAddr().build(); }
+    | <R_MASQUERADE> { n.masquerade().build(); }
+    | net(n)
+    | addr(n)
+  )
+}
+
+void filterParam(FilterHelper f) : 
+{
+  Token n1;
+  NetBuilder n;
+}
+{
+  (
+    <P_PROTO> <COLON> n1 = <NAME> { f.proto(n1.image); } (<COMMA> n1 = <NAME> { f.proto(n1.image); })*
+  | <P_SPORT> <COLON> n1 = <NUMBER> { f.srcPort(n1.image); } (<COMMA> n1 = <NUMBER> { f.srcPort(n1.image); })*
+  | <P_DPORT> <COLON> n1 = <NUMBER> { f.dstPort(n1.image); } (<COMMA> n1 = <NUMBER> { f.dstPort(n1.image); })*
+  | <P_DADDR> <COLON> { n = f.dstNet(); } (<NOT> { n.not(); })? netRef(n)
+  | <P_SADDR> <COLON> { n = f.srcNet(); } (<NOT> { n.not(); })? netRef(n)
+  )
+}
+
+void service(ServiceBuilder f) : 
+{
+  Token n;
+  FilterBuilder s = null, c = null;
+}
+{
+  <SERVICE> n = <NAME> { f.name(n.image); }
+  <OPEN>
+  (filterParam(f))*
+  (<SERVER> { s = f.server(); } <OPEN> (filterParam(s))* <CLOSE> { s.build(); })?
+  (<CLIENT> { c = f.client(); } <OPEN> (filterParam(c))* <CLOSE> { c.build(); })?
+  <CLOSE> 
+  {
+    f.build();
+  }
+}
+
+void modifierParam(ModifierBuilder m) : 
+{
+  Token n1;
+}
+{
+  (
+    <P_SPORT> <COLON> n1 = <NUMBER> { m.srcPort(n1.image); }
+  | <P_DPORT> <COLON> n1 = <NUMBER> { m.dstPort(n1.image); }
+  | <P_DADDR> <COLON> (netRef(m.dstNet()))
+  | <P_SADDR> <COLON> (netRef(m.srcNet()))
+  )
+}
+
+void modifier(ModifierBuilder b) : 
+{
+  Token n;
+}
+{
+  <MODIFY> n = <NAME> { b.name(n.image); }
+  <OPEN> (modifierParam(b))+ <CLOSE> 
+  {
+    b.build();
+  }
+}
+
+String iref() :
+{ 
+  Token t;
+}
+{
+  <AT> t = <NAME> { return t.image; }
+}
+
+void consume(ScriptBuilder s, String intf) :
+{
+  Token t;
+}
+{
+  t = <NAME> { 
+    s.consume().service(t.image).to(intf).build(); 
+  }
+}
+
+void provide(ScriptBuilder s, String intf) :
+{
+  Token t;
+}
+{
+  t = <NAME> { 
+    s.provide().service(t.image).from(intf).build(); 
+  }
+}
+
+void forward(ScriptBuilder s, String intf) :
+{
+  Token f,t,m;
+  RuleBuilder r;
+}
+{
+  f = <NAME> <TO> <AT> t = <NAME> { 
+    r = s.forward().service(f.image).from(intf).to(t.image); 
+  } ( <WITH> m = <NAME> { r.modify(m.image); } )? { 
+    r.build(); 
+  }
+}
+
+void link(ScriptBuilder b, String from) : 
+{
+}
+{
+  (
+    <CONSUME> consume(b, from) (<COMMA> consume(b, from))*
+  | <PROVIDE> provide(b, from) (<COMMA> provide(b, from))*
+  | <FORWARD> forward(b, from) (<COMMA> forward(b, from))*
+  )
+}
+
+void assign(ScriptBuilder b) : 
+{
+  Token t;
+  String i = null;
+}
+{
+  i = iref() 
+  (
+    link(b, i)
+  | <OPEN> (link(b, i))+ <CLOSE>
+  )
+}

@@ -1,0 +1,238 @@
+options {  
+  LOOKAHEAD = 2;
+  STATIC = false;
+}
+
+PARSER_BEGIN(Knight)
+
+package de.ravensnight.fireknight.v1.parser;
+
+import de.ravensnight.fireknight.v1.model.ScriptBuilder;
+import de.ravensnight.fireknight.v1.model.ScopeBuilder;
+import de.ravensnight.fireknight.v1.model.AcceptBuilder;
+import de.ravensnight.fireknight.v1.model.FilterBuilder;
+import de.ravensnight.fireknight.v1.model.ForwardBuilder;
+import de.ravensnight.fireknight.v1.model.AddressBuilder;
+import de.ravensnight.fireknight.v1.model.ProtocolHandler;
+import de.ravensnight.fireknight.v1.model.NatBuilder;
+import de.ravensnight.fireknight.v1.model.Direction;
+
+/**
+ * Simple brace matcher.
+ */
+public class Knight {
+}
+
+PARSER_END(Knight)
+
+SKIP :
+{
+  " "
+| "\t"
+| "\n"
+| "\r"
+}
+
+SPECIAL_TOKEN : 
+{
+  < COMMENT: "#" (~["\n","\r"])* <EOL> > 
+}
+
+/** Keywords */
+TOKEN :
+{
+  < IN:  "<" >
+| < OUT: ">" >
+| < ACCEPT: "accept" >
+| < FORWARD: "forward" >
+| < MASQ: "masquerade" >
+| < NAT: "nat" >
+| < DEFINE: "@define" >
+| < DOT: "." >
+| < DASH: "-" >
+| < COLON: ":" >
+| < SLASH : "/" >
+| < COMMA: "," >
+| < ANY: "*" >
+| < SEMICOLON: ";" >
+| <OPEN: "{" >
+| <CLOSE: "}" >
+| <ARR_OPEN: "[" >
+| <ARR_CLOSE: "]" >
+}
+
+/** Tokens */
+TOKEN :
+{
+  < IPV4NET : <IPV4ADDR> <SLASH> <NUM2> >
+| < IPV4ADDR :  <NUM3> <DOT> <NUM3> <DOT> <NUM3> <DOT> <NUM3> >
+| < REF: "$" <NAME> >
+| < NAME: <LETTER> ( <DIGIT> | <LETTER> )* >
+| < NUMBER : (<DIGIT>)+ >
+| < NUM2 : <DIGIT>(<DIGIT>)? >
+| < NUM3 : <DIGIT>(<DIGIT>(<DIGIT>)?)? >
+| < EOL: "\n" | "\r"  | "\r\n" >
+| < #DIGIT : [ "0"-"9" ] >
+| < #LETTER : [ "a"-"z", "A"-"Z" ] >
+}
+
+/** Root production. */
+void parse(ScriptBuilder builder) :
+{}
+{
+  (intf(builder))* { builder.build(); }
+}
+
+void intf(ScriptBuilder builder) : 
+{
+  Token t;
+  ScopeBuilder b;
+}
+{
+  t = <NAME> { b = builder.scope(); b.setInterface(t.image); } <OPEN>(statement(t.image, b))*<CLOSE>
+  {
+    b.build();
+  }
+}
+
+void statement(String name, ScopeBuilder builder) :
+{}
+{
+  define(builder) | accept(builder) | forward(builder) | nat(builder)
+}
+
+void define(ScopeBuilder builder) :
+{
+  Token k = null, v = null;
+}
+{
+  <DEFINE> k = <NAME>( v = <IPV4ADDR>| v = <IPV4NET>) {
+    builder.define(k.image, v.image);
+  }
+}
+
+void accept(ScopeBuilder builder) : 
+{
+  AcceptBuilder rb = null;
+}
+{
+  <ACCEPT> { rb = builder.accept(); }
+  (
+    filter(rb.inner()) 
+    (
+      <IN> protocols(rb) (
+        (<DASH> filter(rb.outer()) { rb.direction(Direction.IN); })
+      | (<OUT> filter(rb.outer()) { rb.direction(Direction.BOTH); } )
+      )
+    | 
+      <DASH> protocols(rb) <OUT> filter(rb.outer()) { rb.direction(Direction.OUT); }
+    )
+  ) 
+  {
+    rb.build();
+  }
+}
+
+void forward(ScopeBuilder builder) : 
+{
+  ForwardBuilder fb = null;
+  Token outIntf;
+}
+{
+  <FORWARD> { fb = builder.forward(); }
+  filter(fb.srcFilter()) <DASH> protocols(fb) 
+  <OUT> (outIntf = <NAME> { fb.outInterface(outIntf.image); } | <ANY>)
+  {
+    fb.build();
+  }
+}
+
+void nat(ScopeBuilder builder) : 
+{
+  NatBuilder b = null;
+}
+{
+  <NAT> { b = builder.nat(); }
+  (
+    address(b.override()) <IN> { b.dnat(); } protocols(b) <DASH> address(b.origin()) { b.dnat(); }
+  | filter(b.srcFilter()) <DASH> protocols(b) <OUT> { b.snat(); } ( address(b.override()) | <MASQ> { b.masquerade(); })
+  )
+  {
+    b.build();
+  }
+}
+
+void address(AddressBuilder b) :
+{
+  Token a;
+}
+{
+  (
+    a = <IPV4ADDR> { b.addrDirect(a.image); } (singlePort(b))?
+  | a = <REF> { b.addrRef(a.image.substring(1)); } (singlePort(b))?
+  | singlePort(b)
+  ) 
+  {
+    b.build();
+  }
+}
+
+void singlePort(AddressBuilder b) :
+{
+  Token port;
+}
+{
+  <COLON> 
+  (
+    port = <NAME> { b.port(port.image); } 
+  | port = <NUMBER> { b.port(Integer.parseInt(port.image)); }
+  )
+}
+
+void protocols(ProtocolHandler h) :
+{ 
+  Token t = null; 
+}
+{
+  (<ARR_OPEN> t = <NAME> { h.protocol(t.image); } ( <COMMA> t = <NAME> { h.protocol(t.image); } )* <ARR_CLOSE>)?
+}
+
+void filter(FilterBuilder fb) :
+{}
+{    
+  (    
+    <COLON> portList(fb)
+  | (netspec(fb) (<COLON> portList(fb))?)
+  )?
+  {
+    fb.build();
+  }
+}
+
+void netspec(FilterBuilder fb) :
+{
+  Token t;
+}
+{
+  <ANY>
+| t = <IPV4NET> { fb.netDirect(t.image); }
+| t = <IPV4ADDR> { fb.netDirect(t.image); }
+| t = <REF> { fb.netRef(t.image.substring(1)); }
+}
+
+void portList(FilterBuilder fb) : 
+{
+  Token p1 = null, p2 = null;
+}
+{
+  (
+    p1 = <NAME> { fb.port(p1.image); }
+  | p1 = <NUMBER> (<COLON> p2 = <NUMBER> )? { 
+      if (p2 == null) {
+        fb.port(Integer.parseInt(p1.image));
+      } else {
+        fb.portRange(Integer.parseInt(p1.image), Integer.parseInt(p2.image));
+      }
+    }
+  ) ( <COMMA> portList(fb) )?
+}
