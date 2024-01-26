@@ -1,4 +1,4 @@
-# FireKnight Firewall Scripting
+# FireKnight - An iptables Firewall Generator
 ## In a Nutshell
 
 FireKnight is a script converter which translates FireKnight scripts (*.knight) into iptables shell commands. FireKnight scripts have a syntax which is easy to understand and use. 
