@@ -74,4 +74,32 @@ public class Parser2Test
         k.parse(b);
     }
 
+    @Test
+    public void testExample() throws Exception
+    {
+        URL url = Parser2Test.class.getResource("/example.knight");
+
+        Knight k = new Knight(url.openStream());
+
+        ScriptBuilder b = new ScriptBuilder(new Receiver<Script>() {
+
+            @Override
+            public void receive(Script object) {
+
+                try {
+                    OutputStreamWriter w = new OutputStreamWriter(System.out);
+                    IPTablesGenerator gen = new IPTablesGenerator(w);
+
+                    gen.enable(Feature.ACCEPT_ESTABLISHED_RELATED, Feature.CLEANUP, Feature.LOG_SUSPECT, Feature.DROP_SUSPECT, Feature.SUDO);
+                    gen.write(object);
+                    w.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }            
+        });
+
+        k.parse(b);
+    }
+
 }

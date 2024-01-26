@@ -1,0 +1,53 @@
+# -----------------------------------------------------------------------------
+# Port definitions
+# -----------------------------------------------------------------------------
+# define interface localhost
+interface lo     127.0.0.1/32
+
+# define interface eth0, with ip address 192.168.0.1 and net mask 24
+interface eth0 192.168.0.2/24
+
+# -----------------------------------------------------------------------------
+# Services
+# -----------------------------------------------------------------------------
+
+# define a service, which requires any communication in and out
+service any {}
+
+# define ssh, client and server sides
+# both use tpc, port 22
+# source address for the server shall be restricted to the same net as the source interface belongs to
+# destination address for the server shall be restricted to the ip of the interface, where this service is attached to.
+service ssh {
+    proto: tcp
+    dport: 22
+
+    server {
+        saddr: $intf_in_net
+        daddr: $intf_in_addr
+    }
+
+    client {
+        # no restrictions except those from parent
+    }
+}
+
+# -----------------------------------------------------------------------------
+# Rules / Assign services to interfaces
+# -----------------------------------------------------------------------------
+
+# local traffic
+@lo {
+    consume any
+    provide any
+}
+
+# ethernet interface
+@eth0 {
+
+    # provide an ssh service on this machine/interface for external clients
+    provide ssh
+
+    # enable to use ssh from this machine to outside world via eth0
+    consume ssh
+}
