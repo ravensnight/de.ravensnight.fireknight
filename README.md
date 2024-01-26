@@ -54,7 +54,7 @@ FireKnight is a script converter which converts FireKnight scripts into iptables
     # ethernet interface
     @eth0 {
 
-        # provide an ssh service on this machine/interface for external clients
+        # provide a ssh service on this machine/interface for external clients
         provide ssh
     
         # enable to use ssh from this machine to outside world via eth0
