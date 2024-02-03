@@ -8,7 +8,7 @@ interface enp4s0 10.0.20.1/24
 interface enp5s0 10.0.30.1/24
 
 # -----------------------------------------------------------------------------
-# Services
+# Filters
 # -----------------------------------------------------------------------------
 
 service any {}
@@ -72,7 +72,7 @@ service mDNS {
     client {}
 }
 
-service dhcp {
+service dhcpd {
     proto: udp
 
     server {
@@ -117,6 +117,7 @@ service homematic {
     proto: tcp
 
     server {
+	daddr: $intf_in_addr
         saddr: $intf_in_net
         dport: 9125
     }
@@ -130,7 +131,7 @@ service homematic {
 # NFS
 service nfs {
     proto: udp,tcp
-    dport: 111,2049
+    dport: 111,892,2049
 
     server {
         daddr: $intf_in_addr
@@ -170,12 +171,28 @@ service broadcast {
     saddr: $intf_in_net
 }
 
-# forward check
+# forward unknown traffic
 service unknown {
     server {
         daddr: !$intf_in_net
         saddr: $intf_in_net
     }
+}
+
+# mosquitto service
+service mosquitto {
+   proto: tcp
+   server {
+      dport: 1883,8883
+   }
+}
+
+# xmlrpc fwd
+service xmlrpcfwd {
+   proto: tcp
+   saddr: $intf_in_net
+   daddr: $intf_in_addr
+   dport: 2001
 }
 
 # -----------------------------------------------------------------------------
@@ -189,6 +206,11 @@ modify masq {
     saddr: $masquerade
 }
 
+modify dnat_xmlrpc {
+    daddr: 10.0.10.4
+    dport: 2001
+}
+
 # -----------------------------------------------------------------------------
 # Rule assignements
 # -----------------------------------------------------------------------------
@@ -199,7 +221,7 @@ modify masq {
     provide any
 }
 
-# 
+# ssh
 @enp2s0 {
     provide ping    
     provide ssh
@@ -209,6 +231,7 @@ modify masq {
     provide netbios
     provide ssdp
     provide broadcast
+    provide mosquitto
     
     consume ping
     consume ssh
@@ -218,11 +241,13 @@ modify masq {
     consume broadcast
     consume netbios
     consume ntp
+
+    forward xmlrpcfwd to @enp3s0 with dnat_xmlrpc
 }
 
 @enp3s0 {
     provide ping
-    provide dhcp
+    provide dhcpd
     provide dns
     provide mDNS
     provide netbios
@@ -232,6 +257,7 @@ modify masq {
     provide ntp
 
     consume ping
+    consume dhcpd
     consume ssh
     consume mDNS
     consume https,http
@@ -244,7 +270,7 @@ modify masq {
 
 @enp4s0 {
     provide ping
-    provide dhcp
+    provide dhcpd
     provide dns
     provide mDNS
     provide netbios
@@ -253,6 +279,7 @@ modify masq {
     provide ntp
 
     consume ping
+    consume dhcpd
     consume ssh
     consume mDNS
     consume https,http
@@ -265,7 +292,7 @@ modify masq {
 
 @enp5s0 {
     provide ping
-    provide dhcp
+    provide dhcpd
     provide ssh
     provide dns
     provide mDNS
@@ -276,6 +303,7 @@ modify masq {
 
     consume ssh
     consume ping
+    consume dhcpd
     consume mDNS
     consume broadcast
     consume netbios

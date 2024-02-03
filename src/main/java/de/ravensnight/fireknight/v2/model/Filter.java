@@ -6,9 +6,10 @@ import java.util.List;
 import java.util.Set;
 
 import de.ravensnight.fireknight.common.NamedProtocol;
+import de.ravensnight.fireknight.common.Clonable;
 import de.ravensnight.fireknight.common.PortSpec;
 
-public class Filter {
+public class Filter implements Clonable<Filter> {
 
     private final Set<NamedProtocol> protocols = new HashSet<>();
     private final List<PortSpec> srcPorts = new ArrayList<>();
@@ -17,18 +18,18 @@ public class Filter {
     private Net srcNet = null;
     private Net dstNet = null;
 
-    Filter() {
+    public Filter() {
     }
 
-    void add(NamedProtocol p) {
+    public void add(NamedProtocol p) {
         this.protocols.add(p);
     }
 
-    void addSrcPort(PortSpec p) {
+    public void addSrcPort(PortSpec p) {
         this.srcPorts.add(p);
     }
 
-    void addDstPort(PortSpec p) {
+    public void addDstPort(PortSpec p) {
         this.dstPorts.add(p);
     }
 
@@ -58,6 +59,25 @@ public class Filter {
 
     public List<PortSpec> getDstPorts() {
         return dstPorts;
+    }
+
+    @Override
+    public Filter clone() {
+
+        Filter clone = new Filter();
+        clone.protocols.addAll(this.protocols);
+        clone.dstNet = this.dstNet == null ? null : this.dstNet.clone();
+        clone.srcNet = this.srcNet == null ? null : this.srcNet.clone();
+
+        for (PortSpec p : this.srcPorts) {
+            clone.srcPorts.add(p.clone());
+        }
+
+        for (PortSpec p : this.dstPorts) {
+            clone.dstPorts.add(p.clone());
+        }
+
+        return clone;
     }
     
 }

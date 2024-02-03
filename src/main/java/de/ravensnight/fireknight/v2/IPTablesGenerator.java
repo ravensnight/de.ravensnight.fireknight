@@ -10,6 +10,7 @@ import de.ravensnight.fireknight.util.Pair;
 import de.ravensnight.fireknight.util.Permutation;
 import de.ravensnight.fireknight.util.Receiver;
 import de.ravensnight.fireknight.v2.model.Filter;
+import de.ravensnight.fireknight.v2.model.FilterBuilder;
 import de.ravensnight.fireknight.v2.model.InterfaceDef;
 import de.ravensnight.fireknight.v2.model.Modifier;
 import de.ravensnight.fireknight.v2.model.Net;
@@ -218,21 +219,32 @@ public class IPTablesGenerator {
                 throw new GeneratorException("Unknown Rule type " + r.getType().name());
         }
 
-        handleFilter(s, intFrom, intTo, f, state, transportChain);
-
         // create nat
-        for (String mod : r.getModifiers()) {
-            Modifier m = s.getModifier(mod);
-            if (m == null) continue;
+        if (r.getModifier() != null) {
+            Modifier m = s.getModifier(r.getModifier());
+            if (m != null) {            
+                if (m.isDNAT()) {
+                    
+                    // Build a new filter in case there is some PREROUTING modifier
+                    Filter n = f.clone();
+                    if (m.getDstNet() != null) n.setDstNet(m.getDstNet());
+                    if (m.getDstPort() != null) {
+                        n.getDstPorts().clear();
+                        n.addDstPort(m.getDstPort());
+                    }
 
-            if ((m.getDstNet() != null) || (m.getDstPort() != null)) {
-                handleNat(s, intFrom, intTo, f, m.getDstNet(), m.getDstPort(), Chain.PREROUTING);
+                    handleNat(s, intFrom, intTo, f, m.getDstNet(), m.getDstPort(), Chain.PREROUTING);
+                    f = n;
+                }
+        
+                if (m.isSNAT()) {
+                    handleNat(s, intFrom, intTo, f, m.getSrcNet(), m.getSrcPort(), Chain.POSTROUTING);
+                }
             }
-
-            if ((m.getSrcNet() != null) || (m.getSrcPort() != null)) {
-                handleNat(s, intFrom, intTo, f, m.getSrcNet(), m.getSrcPort(), Chain.POSTROUTING);
-            }
-        }
+        }        
+    
+        // handle filter
+        handleFilter(s, intFrom, intTo, f, state, transportChain);
     }
 
     private void handleNat(Script s, final String intFrom, final String intTo, Filter f, final Net newNet, final PortSpec newPort, final Chain chain) {

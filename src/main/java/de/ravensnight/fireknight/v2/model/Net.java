@@ -3,9 +3,10 @@ package de.ravensnight.fireknight.v2.model;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import de.ravensnight.fireknight.common.Clonable;
 import de.ravensnight.fireknight.common.Invertable;
 
-public class Net implements Invertable {
+public class Net implements Invertable, Clonable<Net> {
 
     private static Pattern regex = Pattern.compile("([1-2]?[0-9]?[0-9])\\.([1-2]?[0-9]?[0-9])\\.([1-2]?[0-9]?[0-9])\\.([1-2]?[0-9]?[0-9])(/[1-3]?[0-9])?");
 
@@ -114,14 +115,6 @@ public class Net implements Invertable {
         return new Net(this.getAddr(), null);
     }
 
-    public Net clone() {
-        if (this.isRef()) {
-            return new Net(this.type);
-        } else {
-            return new Net(this.getAddr(), this.getMask());
-        }
-    }
-
     public static String toAddress(long value) {
         StringBuilder b = new StringBuilder();
         for (int i = 3; i >= 0; i--) {
@@ -160,5 +153,17 @@ public class Net implements Invertable {
         }
 
         return b.toString();
+    }
+
+    @Override
+    public Net clone() {
+        Net clone = null;
+        if (this.type == Type.DEFAULT) {
+            clone = new Net(this.addr, this.mask);
+        } else {
+            clone = new Net(this.type);
+        }
+
+        return clone;
     }
 }

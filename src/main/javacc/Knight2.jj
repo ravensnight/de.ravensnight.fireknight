@@ -82,7 +82,7 @@ TOKEN :
 {
   < ADDR :  <NUMBER> <DOT> <NUMBER> <DOT> <NUMBER> <DOT> <NUMBER> >
 | < REF: "$" <NAME> >
-| < NAME: <LETTER> ( <DIGIT> | <LETTER> )* >
+| < NAME: <LETTER> ( <DIGIT> | <LETTER> | "_" )* >
 | < NUMBER : (<DIGIT>)+ >
 | < EOL: "\n" | "\r"  | "\r\n" >
 | < #DIGIT : [ "0"-"9" ] >

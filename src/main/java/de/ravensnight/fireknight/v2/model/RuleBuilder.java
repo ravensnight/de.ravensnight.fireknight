@@ -28,7 +28,7 @@ public class RuleBuilder extends AbstractBuilder<Rule> {
     }
 
     public RuleBuilder modify(String modifier) {
-        this.rule.addModifier(modifier);
+        this.rule.setModifier(modifier);
         return this;
     }
 

@@ -12,9 +12,9 @@ public class Rule {
     private String intFrom = null;
     private String intTo = null;
     private String service = null;
-    private final Type type;
+    private String modifier = null;
 
-    private final List<String> modifiers = new ArrayList<>();
+    private final Type type;
     
     Rule(Type type) {
         this.type = type;
@@ -38,12 +38,12 @@ public class Rule {
     public void setService(String service) {
         this.service = service;
     }
-    public void addModifier(String modifier) {
-        this.modifiers.add(modifier);
+    public void setModifier(String modifier) {
+        this.modifier = modifier;
     }
     
-    public List<String> getModifiers() {
-        return this.modifiers;
+    public String getModifier() {
+        return this.modifier;
     }
 
     public Type getType() {

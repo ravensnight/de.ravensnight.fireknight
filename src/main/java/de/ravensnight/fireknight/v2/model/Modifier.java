@@ -15,11 +15,11 @@ public class Modifier {
         this.name = name;
     }
 
-    void setSrcPort(PortSpec p) {
+    public void setSrcPort(PortSpec p) {
         this.srcPort = p;
     }
 
-    void setDstPort(PortSpec p) {
+    public void setDstPort(PortSpec p) {
         this.dstPort = p;
     }
 
@@ -51,5 +51,11 @@ public class Modifier {
         return name;
     }
 
-    
+    public boolean isSNAT() {
+        return (this.srcNet != null) || (this.srcPort != null);
+    }
+
+    public boolean isDNAT() {
+        return (this.dstNet != null) || (this.dstPort != null);
+    }
 }

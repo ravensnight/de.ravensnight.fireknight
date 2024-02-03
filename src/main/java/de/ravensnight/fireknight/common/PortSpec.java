@@ -1,6 +1,6 @@
 package de.ravensnight.fireknight.common;
 
-public class PortSpec implements Invertable {
+public class PortSpec implements Invertable, Clonable<PortSpec> {
 
     private final int from;
     private final int to;
@@ -51,5 +51,12 @@ public class PortSpec implements Invertable {
     @Override
     public boolean invert() {
         return this.invert;
+    }
+
+    public PortSpec clone() {
+        PortSpec p = new PortSpec(this.from, this.to);
+        p.invert = this.invert;
+        
+        return p;
     }
 }
