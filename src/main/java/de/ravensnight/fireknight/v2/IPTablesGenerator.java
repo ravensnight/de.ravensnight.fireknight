@@ -10,7 +10,6 @@ import de.ravensnight.fireknight.util.Pair;
 import de.ravensnight.fireknight.util.Permutation;
 import de.ravensnight.fireknight.util.Receiver;
 import de.ravensnight.fireknight.v2.model.Filter;
-import de.ravensnight.fireknight.v2.model.FilterBuilder;
 import de.ravensnight.fireknight.v2.model.InterfaceDef;
 import de.ravensnight.fireknight.v2.model.Modifier;
 import de.ravensnight.fireknight.v2.model.Net;

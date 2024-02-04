@@ -207,7 +207,7 @@ modify masq {
 }
 
 modify dnat_xmlrpc {
-    daddr: 10.0.10.4
+    daddr: 10.0.10.4    
     dport: 2001
 }
 
